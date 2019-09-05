@@ -233,7 +233,38 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   // Rule 1: boids fly towards their local perceived center of mass, which excludes themselves
   // Rule 2: boids try to stay a distance d away from each other
   // Rule 3: boids try to match the speed of surrounding boids
-  return glm::vec3(0.0f, 0.0f, 0.0f);
+  glm::vec3 updatedVel(0.0f, 0.0f, 0.0f);
+  
+  // Rule 1
+  glm::vec3 vectPerceived(0.0f, 0.0f, 0.0f);
+  for (int i =0, i< N ; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+	if (iSelf!=i && dist < rule1Distance)
+      vectPerceived += pos[i];
+  }
+  vectPerceived = vectPerceived/N-1;
+  updatedVel = updatedVel + (vectPerceived - pos[iSelf])*rule1Scale;
+  
+  // Rule 2
+  glm::vec3 vectC(0.0f, 0.0f, 0.0f);
+  for (int i =0, i< N ; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+	if (iSelf!=i && dist < rule2Distance)
+      vectC -= (pos[i] - pos[iSelf]);
+  }
+  updatedVel += vectC*rule2Scale;
+
+  // Rule 3
+  glm::vec3 vectPerceviedVel(0.0f, 0.0f, 0.0f);
+  for (int i =0, i< N ; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+	if (iSelf!=i && dist < rule3Distance)
+      vectPerceivedVel += pos[i];
+  }
+  vectPerceived = vectPerceived/N-1;
+  updatedVel = updatedVel + (vectPerceivedVel)*rule3Scale;
+
+  return updatedVel;
 }
 
 /**
@@ -245,6 +276,9 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
+  int index = threadIdx;
+  glm::vec3 updateVel = computeVelocityChange(N, index, pos,vel);
+  vel2 = vel1 + updatedVel;	
 }
 
 /**
