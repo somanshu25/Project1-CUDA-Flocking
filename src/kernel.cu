@@ -237,31 +237,31 @@ __device__ glm::vec3 computeVelocityChange(int N, int iSelf, const glm::vec3 *po
   
   // Rule 1
   glm::vec3 vectPerceived(0.0f, 0.0f, 0.0f);
-  for (int i =0, i< N ; i++) {
-    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+  for (int i = 0; i < N; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x,2) + pow(pos[iSelf].y - pos[i].y,2) + pow(pos[iSelf].z - pos[i].z,2));
 	if (iSelf!=i && dist < rule1Distance)
       vectPerceived += pos[i];
   }
-  vectPerceived = vectPerceived/N-1;
+  vectPerceived /= N-1;
   updatedVel = updatedVel + (vectPerceived - pos[iSelf])*rule1Scale;
   
   // Rule 2
   glm::vec3 vectC(0.0f, 0.0f, 0.0f);
-  for (int i =0, i< N ; i++) {
-    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+  for (int i = 0; i < N; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x,2) + pow(pos[iSelf].y - pos[i].y,2) + pow(pos[iSelf].z - pos[i].z,2));
 	if (iSelf!=i && dist < rule2Distance)
       vectC -= (pos[i] - pos[iSelf]);
   }
   updatedVel += vectC*rule2Scale;
-
+  printf("Here it came \n");
   // Rule 3
-  glm::vec3 vectPerceviedVel(0.0f, 0.0f, 0.0f);
-  for (int i =0, i< N ; i++) {
-    float dist = sqrt(pow(pos[iSelf].x - pos[i].x) + pow(pos[iSelf].y - pos[i].y) + pow(pos[iSelf].z - pos[i].z));
+  glm::vec3 vectPerceivedVel(0.0f, 0.0f, 0.0f);
+  for (int i = 0; i < N; i++) {
+    float dist = sqrt(pow(pos[iSelf].x - pos[i].x,2) + pow(pos[iSelf].y - pos[i].y,2) + pow(pos[iSelf].z - pos[i].z,2));
 	if (iSelf!=i && dist < rule3Distance)
       vectPerceivedVel += pos[i];
   }
-  vectPerceived = vectPerceived/N-1;
+  vectPerceivedVel /= N-1;
   updatedVel = updatedVel + (vectPerceivedVel)*rule3Scale;
 
   return updatedVel;
@@ -276,9 +276,17 @@ __global__ void kernUpdateVelocityBruteForce(int N, glm::vec3 *pos,
   // Compute a new velocity based on pos and vel1
   // Clamp the speed
   // Record the new velocity into vel2. Question: why NOT vel1?
-  int index = threadIdx;
-  glm::vec3 updateVel = computeVelocityChange(N, index, pos,vel);
-  vel2 = vel1 + updatedVel;	
+  int index = threadIdx.x + (blockIdx.x * blockDim.x);
+  if (index > N) {
+	  return;
+  }
+  glm::vec3 updatedVel{ computeVelocityChange(N, index, pos, vel1) };
+  vel2[index] = vel1[index] + updatedVel;
+  //float length = glm::length(vel2[index]);
+  //if (length > maxSpeed) {
+	//  vel2[index] = maxSpeed / length * vel2[index];
+  //}
+  vel2[index] = glm::clamp(vel2[index], 0.0f, maxSpeed);
 }
 
 /**
@@ -383,6 +391,12 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 void Boids::stepSimulationNaive(float dt) {
   // TODO-1.2 - use the kernels you wrote to step the simulation forward in time.
   // TODO-1.2 ping-pong the velocity buffers
+	dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+	kernUpdateVelocityBruteForce << <fullBlocksPerGrid,blockSize>> > (numObjects,dev_pos,dev_vel1,dev_vel2);
+	checkCUDAErrorWithLine("brute force failed");
+	kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects,dt,dev_pos,dev_vel2);
+	checkCUDAErrorWithLine("update Position Function Failed");
+	dev_vel1 = dev_vel2;
 }
 
 void Boids::stepSimulationScatteredGrid(float dt) {
