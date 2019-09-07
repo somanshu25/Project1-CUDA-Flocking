@@ -85,6 +85,8 @@ int *dev_gridCellEndIndices;   // to this cell?
 
 // TODO-2.3 - consider what additional buffers you might need to reshuffle
 // the position and velocity data to be coherent within cells.
+glm::vec3 *dev_posCoherent;
+glm::vec3 *dev_velCoherent;
 
 // LOOK-2.1 - Grid parameters based on simulation parameters.
 // These are automatically computed for you in Boids::initSimulation
@@ -183,6 +185,12 @@ void Boids::initSimulation(int N) {
 
 	dev_thrust_particleArrayIndices = thrust::device_pointer_cast<int>(dev_particleArrayIndices);
 	dev_thrust_particleGridIndices = thrust::device_pointer_cast<int>(dev_particleGridIndices);
+
+	cudaMalloc((void**)&dev_posCoherent, N * sizeof(glm::vec3));
+	checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
+
+	cudaMalloc((void**)&dev_velCoherent, N * sizeof(glm::vec3));
+	checkCUDAErrorWithLine("cudaMalloc dev_gridCellEndIndices failed!");
 
   cudaDeviceSynchronize();
 }
@@ -399,6 +407,34 @@ __global__ void kernIdentifyCellStartEnd(int N, int *particleGridIndices,
 
 }
 
+// New function for rehuffling the boid data for contiguos allocation for boids within the cell
+
+__global__ void kernReshuffleBoidDataForCoherentSearch(
+	int N, int *particleArrayIndices,
+	glm::vec3 *pos, glm::vec3 *vel,
+	glm::vec3 *posShuffled, glm::vec3 *velShuffled) {
+	// Reshuffle pos and vel for continoug memeory access
+
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+	if (index >= N)
+		return;
+
+	posShuffled[index] = pos[particleArrayIndices[index]];
+	velShuffled[index] = vel[particleArrayIndices[index]];
+}
+
+__global__ void kernUnshuffleBoidVelocityData(
+	int N, int *particleArrayIndices, 
+	glm::vec3 *velShuffled, glm::vec3 *velUnshuffled) {
+	// Reshuffle pos and vel for continoug memeory access
+
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+	if (index >= N)
+		return;
+
+	velUnshuffled[particleArrayIndices[index]] = velShuffled[index];
+}
+
 __global__ void kernUpdateVelNeighborSearchScattered(
   int N, int gridResolution, glm::vec3 gridMin,
   float inverseCellWidth, float cellWidth,
@@ -512,6 +548,81 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
   // - Access each boid in the cell and compute velocity change from
   //   the boids rules, if this boid is within the neighborhood distance.
   // - Clamp the speed change before putting the new speed in vel2
+
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+	if (index >= N)
+		return;
+
+	glm::vec3 vectPerceived(0.0f, 0.0f, 0.0f);
+	glm::vec3 vectC(0.0f, 0.0f, 0.0f);
+	glm::vec3 vectPerceivedVel(0.0f, 0.0f, 0.0f);
+
+	glm::vec3 boidCoord = glm::floor((pos[index] - gridMin) * inverseCellWidth);
+	//printf("Relative position after floor is : x: %0.2f , y: %0.2f, z: %0.2f \n", boidCoord.x, boidCoord.y, boidCoord.z);
+	//int boidGridId = gridIndex3Dto1D(boidCoord.x, boidCoord.y, boidCoord.z, gridResolution);
+
+	int xStart = (int)boidCoord.x;
+	int yStart = (int)boidCoord.y;
+	int zStart = (int)boidCoord.z;
+	//int loopCount = 0;
+	int candidateGridId, boidStart, boidEnd, numberNeighboursRule1 = 0, numberNeighboursRule3 = 0;
+	//printf("Boid Co-ordinate: x: %d ,y: %d, z:%d \n", boidCoord.x, boidCoord.y, boidCoord.z);
+	for (int x = xStart - 1; x <= xStart + 1; x++) {
+		if (x < 0 || x >= gridResolution)
+			continue;
+		for (int y = yStart - 1; y <= yStart + 1; y++) {
+			if (y < 0 || y >= gridResolution)
+				continue;
+			for (int z = zStart - 1; z <= zStart + 1; z++) {
+				if (z < 0 || z >= gridResolution)
+					continue;
+
+				candidateGridId = gridIndex3Dto1D(x, y, z, gridResolution);
+				boidStart = gridCellStartIndices[candidateGridId];
+				boidEnd = gridCellEndIndices[candidateGridId];
+				//printf("Boid Start: %d and Boid End: %d \n", boidStart, boidEnd);
+				if (boidStart == -1 || boidEnd == -1)
+					continue;
+				for (int id = boidStart; id <= boidEnd; id++) {
+					//loopCount++;
+					// Rule 1
+					if (index != id && glm::distance(pos[id], pos[index]) < rule1Distance) {
+						vectPerceived += pos[id];
+						numberNeighboursRule1++;
+					}
+					// glm::distance(pos[boidCheckId], pos[index])
+					// Rule 2
+					if (index != id && glm::distance(pos[id], pos[index]) < rule2Distance) {
+						vectC -= (pos[id] - pos[index]);
+					}
+
+					// Rule 3
+					if (index != id && glm::distance(pos[id], pos[index]) < rule3Distance) {
+						vectPerceivedVel += vel1[id];
+						numberNeighboursRule3++;
+					}
+				}
+			}
+		}
+	}
+	//printf("Loop Count : %d\n", loopCount);
+
+	if (numberNeighboursRule1) {
+		vectPerceived /= numberNeighboursRule1;
+		vectPerceived = (vectPerceived - pos[index])*rule1Scale;
+	}
+
+	vectC = vectC * rule2Scale;
+
+	if (numberNeighboursRule3) {
+		vectPerceivedVel /= numberNeighboursRule3;
+		vectPerceivedVel = vectPerceivedVel * rule3Scale;
+	}
+
+	vel2[index] = vel1[index] + vectPerceived + vectC + vectPerceivedVel;
+	vel2[index] = glm::clamp(vel2[index], -maxSpeed, maxSpeed);
+	//vel2[index] = vel1[index] + vectVelChange;
+
 }
 
 /**
@@ -560,7 +671,7 @@ void Boids::stepSimulationScatteredGrid(float dt) {
 	checkCUDAErrorWithLine("Identifying Start and End Boid Points failed ");
 
 	kernUpdateVelNeighborSearchScattered << <fullBlocksPerGrid, blockSize >> > (numObjects,gridSideCount,gridMinimum,gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_particleArrayIndices,dev_pos,dev_vel1,dev_vel2);
-	checkCUDAErrorWithLine("Identifying Start and End Boid Points failed ");
+	checkCUDAErrorWithLine("Scattered Neighbour Search failed ");
 
 	kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel2);
 	checkCUDAErrorWithLine("update Position Function Failed");
@@ -584,6 +695,38 @@ void Boids::stepSimulationCoherentGrid(float dt) {
   // - Perform velocity updates using neighbor search
   // - Update positions
   // - Ping-pong buffers as needed. THIS MAY BE DIFFERENT FROM BEFORE.
+
+
+	dim3 fullBlocksPerGrid((numObjects + blockSize - 1) / blockSize);
+	dim3 gridResetSize((gridCellCount + blockSize - 1) / blockSize);
+
+	kernResetIntBuffer << <gridResetSize, blockSize >> > (gridCellCount, dev_gridCellStartIndices, -1);
+	checkCUDAErrorWithLine("resetting dev_gridCellStartIndices failed ");
+
+	kernResetIntBuffer << <gridResetSize, blockSize >> > (gridCellCount, dev_gridCellEndIndices, -1);
+	checkCUDAErrorWithLine("resetting dev_gridCellEndIndices failed ");
+
+	kernComputeIndices << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, dev_pos, dev_particleArrayIndices, dev_particleGridIndices);
+	checkCUDAErrorWithLine("Computing indices failed ");
+
+	thrust::sort_by_key(dev_thrust_particleGridIndices, dev_thrust_particleGridIndices + numObjects, dev_thrust_particleArrayIndices);
+
+	kernIdentifyCellStartEnd << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleGridIndices, dev_gridCellStartIndices, dev_gridCellEndIndices);
+	checkCUDAErrorWithLine("Identifying Start and End Boid Points failed ");
+
+	kernReshuffleBoidDataForCoherentSearch << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices,dev_pos,dev_vel1,dev_posCoherent,dev_velCoherent);
+	checkCUDAErrorWithLine("Shuffling Boid pos and vel data for Coherent Search failed ");
+
+	kernUpdateVelNeighborSearchCoherent << <fullBlocksPerGrid, blockSize >> > (numObjects, gridSideCount, gridMinimum, gridInverseCellWidth, gridCellWidth, dev_gridCellStartIndices, dev_gridCellEndIndices, dev_posCoherent, dev_velCoherent, dev_vel2);
+	checkCUDAErrorWithLine("Coherent Neighbour search failed ");
+
+	kernUnshuffleBoidVelocityData << <fullBlocksPerGrid, blockSize >> > (numObjects, dev_particleArrayIndices,dev_vel2, dev_vel1);
+	checkCUDAErrorWithLine("Unshuffling velocity boid data failed failed ");
+
+	kernUpdatePos << <fullBlocksPerGrid, blockSize >> > (numObjects, dt, dev_pos, dev_vel1);
+	checkCUDAErrorWithLine("update Position Function Failed");
+
+	//dev_vel1 = dev_velCoherent;
 }
 
 void Boids::endSimulation() {
@@ -598,6 +741,8 @@ void Boids::endSimulation() {
 	cudaFree(dev_gridCellStartIndices);
 	cudaFree(dev_gridCellEndIndices);
 
+	cudaFree(dev_posCoherent);
+	cudaFree(dev_velCoherent);
 }
 
 void Boids::unitTest() {
