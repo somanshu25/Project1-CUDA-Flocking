@@ -5,7 +5,7 @@ Project 1 - Flocking**
 
 * SOMANSHU AGARWAL
   * [LinkedIn](https://www.linkedin.com/in/somanshu25)
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Tested on: Windows 10, i7-6700 @ 3.4GHz 16GB, Quadro P 100 12 233MB (Moore 100B Lab)
 
 ### OBJECTIVE
 
@@ -40,6 +40,10 @@ We can see from both the above graphs that FPS rates are more witout visualizati
 2. The graphs showing increasing the block size for all the 3 implementations are:
 
 ![](images/Chart_Block_Size.png)
+
+3. The graph for observing the grid cell width is 2*(neighbouring distance) vs when grid cell width is neighbouring distance is shown below, where the neighbouring distance is the maximum of all the ruleDistances for the neighbour checks.
+
+![](images/Chart_Grid_CellWidth_Change.png)
 
 ## Answers to the questions:
 ### For each implementation, how does changing the number of boids affect performance? Why do you think this is?
