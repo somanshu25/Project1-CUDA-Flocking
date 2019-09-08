@@ -34,10 +34,23 @@ Here are ther graphs showing the frame rate per second of the three implementati
 
 ![](images/Chart_Boid_Count_Without_Visual.png)
 
+We can see from both the above graphs that FPS rates are more witout visualization. 
 2. The graphs showing increasing the block size for all the 3 implementations are:
 
 ![](images/Chart_Block_Size.png)
 
+## Answers to the questions:
+### For each implementation, how does changing the number of boids affect performance? Why do you think this is?
+We can see in the graphs above that as the number of boids increase, the performance will decrease as there would be more number of neighbours and boids to check for earch reference boid and thus will increase the runtime. The impact can be seen same in all the 3 implementations, we can observe that the perofrmance is bettern in coherent for higher number of boids as compared to rest of the 2 implementations.
+
+### For each implementation, how does changing the block count and block size affect performance? Why do you think this is?
+With the graph of increasing the block size for all the 3 implementations, we can see that the performance is almost same if we are using the block sioze equal to the multiples of warp size, i.e., 32. We can infer with the fact that the numebr of threads that are released are same even if the block size are increasing.
+
+### For the coherent uniform grid: did you experience any performance improvements with the more coherent uniform grid? Was this the outcome you expected? Why or why not?
+For coherent uniform grid, we see the improved performance with respect to the scattered one
+
+### Did changing cell width and checking 27 vs 8 neighboring cells affect performance? Why or why not? Be careful: it is insufficient (and possibly incorrect) to say that 27-cell is slower simply because there are more cells to check!
+After plotting the line graph for 8 vs 27 neighbouring cells for scattered implementation, we observe that the 27 neighbouring cells is giving slightly better performance as compared to 8 neighbouring cells. One reason could be the smaller cell width will result in more number of grid cells which will include less number of boids as the cells are smaller. Thus, as compare to larger grid cells, it would check the boids which are more probably wthin the neighbouring distance of the boid as the larger cells would have to search the boids which could be farther but just indide the cells. Hence, the performance is slightly better with smaller grid width.
 
 
 
