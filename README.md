@@ -18,7 +18,7 @@ In the naive implementation, got a particluar boid, we are searching all the oth
 ### Grid System
 For the rest of the 2 implementation, we are creating a grid system in which we are enclosing the whole space in a cube with grid cell width setting by the user according to the requirements. With changing the gird cell width, the grid resoltion and the grid cell count will vary and its impact on the performance is also studies in this project. By using the grid system, we are labelling each boid to a grid cell index.
 
-![](images/Boids_Ugrid_base.png)
+![](images/Boids Ugrid base.png)
 
 ## 2. Scattered 
 
