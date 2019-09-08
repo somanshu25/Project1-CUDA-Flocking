@@ -48,6 +48,7 @@ We can see from both the above graphs that FPS rates are more witout visualizati
 
 ![](images/Chart_Block_Size.png)
 
+
 3. The graph for observing the grid cell width is 2*(neighbouring distance) vs when grid cell width is neighbouring distance is shown below, where the neighbouring distance is the maximum of all the ruleDistances for the neighbour checks.
 
 ![](images/Chart_Grid_CellWidth_Change.png)
