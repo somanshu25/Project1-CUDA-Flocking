@@ -15,12 +15,12 @@ The main motive of the project is to visualize Boids flocking and do the perform
 
 In the naive implementation, got a particluar boid, we are searching all the other boids and then selecting the relevant neighbours for the position and velocity update of the boid. This for every boid, we are checking other N-1 boids, which is time consuming and inefficient when N is large. 
 
+## 2. Scattered 
+
 ### Grid System
 For the rest of the 2 implementation, we are creating a grid system in which we are enclosing the whole space in a cube with grid cell width setting by the user according to the requirements. With changing the gird cell width, the grid resoltion and the grid cell count will vary and its impact on the performance is also studies in this project. By using the grid system, we are labelling each boid to a grid cell index.
 
 ![](https://github.com/somanshu25/Project1-CUDA-Flocking/blob/master/images/Boids%20Ugrid%20base.png)
-
-## 2. Scattered 
 
 In this implementation, we are limiting our search for the boids which are labelled in the cells of the neighbourhood distance we need to check. Thus, we are checking those grid cells which could be enclosed in the sphere inside the cube with the radius as the neighbouring distance. The number of cells enclosed would differ with the length of the grid cells. Having grid width of twice the maximum neighbourhood distance will take 8 cells while the length equal to maximum neighbouring dustance will take 27 cells. For making sure we are selecting those cells which are enclised in the grid cells, we are sorting the array of boid indexes with respect to the grid indexes labelled and then when we select the particular cell index, we get the range of boids we need to check.
 
