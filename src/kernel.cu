@@ -462,23 +462,19 @@ __global__ void kernUpdateVelNeighborSearchScattered(
 	glm::vec3 vectC(0.0f, 0.0f, 0.0f);
 	glm::vec3 vectPerceivedVel(0.0f, 0.0f, 0.0f);
 	
-	glm::vec3 boidCoord = glm::floor((pos[index] - gridMin) * inverseCellWidth);
-	//printf("Relative position after floor is : x: %0.2f , y: %0.2f, z: %0.2f \n", boidCoord.x, boidCoord.y, boidCoord.z);
-	//int boidGridId = gridIndex3Dto1D(boidCoord.x, boidCoord.y, boidCoord.z, gridResolution);
+	float max_distance = max(rule1Distance, max(rule2Distance, rule3Distance));
+	glm::ivec3 maxCellIndex = ((pos[index] - gridMin) + max_distance) * inverseCellWidth;
+	glm::ivec3 minCellIndex = ((pos[index] - gridMin) - max_distance) * inverseCellWidth;
 	
-	int xStart = (int)boidCoord.x;
-	int yStart = (int)boidCoord.y;
-	int zStart = (int)boidCoord.z;
-	//int loopCount = 0;
 	int candidateGridId,boidStart,boidEnd,numberNeighboursRule1 = 0,numberNeighboursRule3 = 0;
 	//printf("Boid Co-ordinate: x: %d ,y: %d, z:%d \n", boidCoord.x, boidCoord.y, boidCoord.z);
-	for (int x = xStart - 1; x <= xStart + 1; x++) {
+	for (int x = minCellIndex.x; x <= maxCellIndex.x ; x++) {
 		if (x < 0 || x >= gridResolution)
 			continue;
-		for (int y = yStart - 1; y <= yStart + 1 ; y++) {
+		for (int y = minCellIndex.y; y <= maxCellIndex.y; y++) {
 			if (y < 0 || y >= gridResolution)
 				continue;
-			for (int z = zStart - 1; z <= zStart +1 ; z++) {
+			for (int z = minCellIndex.z; z <= maxCellIndex.z; z++) {
 				if (z < 0 || z >= gridResolution)
 					continue;
 
@@ -557,26 +553,23 @@ __global__ void kernUpdateVelNeighborSearchCoherent(
 	glm::vec3 vectC(0.0f, 0.0f, 0.0f);
 	glm::vec3 vectPerceivedVel(0.0f, 0.0f, 0.0f);
 
-	glm::vec3 boidCoord = glm::floor((pos[index] - gridMin) * inverseCellWidth);
-	//printf("Relative position after floor is : x: %0.2f , y: %0.2f, z: %0.2f \n", boidCoord.x, boidCoord.y, boidCoord.z);
-	//int boidGridId = gridIndex3Dto1D(boidCoord.x, boidCoord.y, boidCoord.z, gridResolution);
+	float max_distance = max(rule1Distance, max(rule2Distance, rule3Distance));
+	glm::ivec3 maxCellIndex = ((pos[index] - gridMin) + max_distance) * inverseCellWidth;
+	glm::ivec3 minCellIndex = ((pos[index] - gridMin) - max_distance) * inverseCellWidth;
 
-	int xStart = (int)boidCoord.x;
-	int yStart = (int)boidCoord.y;
-	int zStart = (int)boidCoord.z;
-	//int loopCount = 0;
 	int candidateGridId, boidStart, boidEnd, numberNeighboursRule1 = 0, numberNeighboursRule3 = 0;
-	//printf("Boid Co-ordinate: x: %d ,y: %d, z:%d \n", boidCoord.x, boidCoord.y, boidCoord.z);
-	for (int x = xStart - 1; x <= xStart + 1; x++) {
+	//printf("Boid Co-ordinate: x: %d ,y: %d, z:%d \n", maxCellIndex.x, maxCellIndex.y, maxCellIndex.z);
+	int loopCount = 0;
+	for (int x = minCellIndex.x; x <= maxCellIndex.x; x++) {
 		if (x < 0 || x >= gridResolution)
 			continue;
-		for (int y = yStart - 1; y <= yStart + 1; y++) {
+		for (int y = minCellIndex.y; y <= maxCellIndex.y; y++) {
 			if (y < 0 || y >= gridResolution)
 				continue;
-			for (int z = zStart - 1; z <= zStart + 1; z++) {
+			for (int z = minCellIndex.z; z <= maxCellIndex.z; z++) {
 				if (z < 0 || z >= gridResolution)
 					continue;
-
+				loopCount++;
 				candidateGridId = gridIndex3Dto1D(x, y, z, gridResolution);
 				boidStart = gridCellStartIndices[candidateGridId];
 				boidEnd = gridCellEndIndices[candidateGridId];
