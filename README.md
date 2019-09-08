@@ -27,6 +27,17 @@ In this implememntation, we do further optimization in our code by reshuffling t
 
 Here are ther graphs showing the frame rate per second of the three implementations when we change the number of boids in the siimulation:
 
+1 .The graphs showing the FPS with and without visualization for increasing the number of Boids in simulation for all the 3 implementations are:
+
+![](images/Chart_Boid_Count_With_Visual.png)
+
+
+![](images/Chart_Boid_Count_Without_Visual.png)
+
+2. The graphs showing increasing the block size for all the 3 implementations are:
+
+![](images/Chart_Block_Size.png)
+
 
 
 
