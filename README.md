@@ -18,7 +18,7 @@ In the naive implementation, for a particluar boid, we are searching all the oth
 ## 2. Scattered 
 
 ### Grid System
-For the rest of the 2 implementations, we are creating a grid system in which we are enclosing the whole space in a cube with grid cell width setting by the user according to the requirements. With changing the gird cell width, the grid resoltion and the grid cell count will vary and its impact on the performance is also studied in this project. By using the grid system, we are labelling each boid to a grid cell index.
+For the rest of the 2 implementations, we are creating a grid system in which we are enclosing the whole space in a cube with grid cell width setting by the user according to the requirements. With changing the gird cell width, the grid resoltion and the grid cell count will vary and its impact on the performance is also studied in this project. By using the grid system, we are labelling each boid to a particular grid cell index.
 
 ![](https://github.com/somanshu25/Project1-CUDA-Flocking/blob/master/images/Boids%20Ugrid%20base.png)
 
